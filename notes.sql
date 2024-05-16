@@ -5,6 +5,13 @@ SET time_zone = "+00:00";
 CREATE DATABASE IF NOT EXISTS `notes` DEFAULT CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 USE `notes`;
 
+CREATE TABLE `captcha` (
+  `id` int(11) NOT NULL,
+  `owner_key_id` int(11) NOT NULL,
+  `time` timestamp NOT NULL DEFAULT current_timestamp(),
+  `success` tinyint(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
 CREATE TABLE `config` (
   `id` int(11) NOT NULL,
   `platform` varchar(32) NOT NULL,
@@ -70,7 +77,8 @@ CREATE TABLE `owners` (
   `id` int(11) NOT NULL,
   `key` varchar(256) NOT NULL,
   `default_note_color` bigint(20) DEFAULT NULL,
-  `first_note_key` varchar(32) DEFAULT NULL
+  `first_note_key` varchar(32) DEFAULT NULL,
+  `captcha_done` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 CREATE TABLE `requests` (
@@ -94,6 +102,8 @@ CREATE TABLE `variables` (
   `value` varchar(256) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
+ALTER TABLE `captcha`
+  ADD PRIMARY KEY (`id`);
 
 ALTER TABLE `config`
   ADD PRIMARY KEY (`id`);
@@ -133,6 +143,8 @@ ALTER TABLE `variables`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `key` (`key`);
 
+ALTER TABLE `captcha`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `config`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
@@ -166,7 +178,6 @@ ALTER TABLE `sessions`
 
 ALTER TABLE `variables`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
 
 INSERT INTO `config` (`id`, `platform`, `latest_ver`, `oldest_allowed_ver`, `latest_link`, `instructions`, `instructions_link`) VALUES
 (1, 'android', '2.0.4', '2.0.0', 'https://www.kardi.tech/notes/downloads/kardi%20notes.apk', '', ''),
