@@ -766,7 +766,6 @@ else if (isset($_GET["version_check"]))
   }
   $current_ver = explode(".", $current_ver);
 
-  //don't go out of scope (https://www.youtube.com/watch?v=SzfX9DUzwGg)
   $major_good = false;
   $minor_good = false;
   $build_good = false;
@@ -806,6 +805,74 @@ else if (isset($_GET["version_check"]))
   //not latest or under the oldest allowed version
   db_query('UPDATE `sessions` SET `version_check_done`=?, `revoked`=? WHERE `session`=?', [true, !$can_ignore, $session]);
   die(DH::enc(json_encode(array("can_ignore" => $can_ignore, "latest_ver" => $row["latest_ver"], "latest_link" => $row["latest_link"], "instructions" => $row["instructions"], "instructions_link" => $row["instructions_link"])), $enc_key, $enc_iv));
+}
+else if (isset($_GET["captcha"]))
+{
+  $period_length_seconds = 60;
+  $max_request_per_period = 3;
+
+  //POST is json encoded
+  $data = json_decode(file_get_contents("php://input"), true);  
+  if (empty($data["body"]) || empty($data["session"])) { die("0"); }
+  $body = $data["body"];
+  $session = $data["session"];
+
+  //get session enc key and iv
+  $result = db_query('SELECT `enc_key`, `enc_iv` FROM `sessions` WHERE `session`=?', [$session]);
+  if ($result->num_rows == 0) { die("0"); }
+  $row = $result->fetch_assoc();
+  $enc_key = $row["enc_key"];
+  $enc_iv = $row["enc_iv"];
+
+  //checking session
+  check_session($session, $enc_key, $enc_iv);
+
+  //decrypt and decode body
+  $body = DH::dec($body, $enc_key, $enc_iv);
+  $data = json_decode($body, true);
+
+  if (empty($data["ownerKey"]) || !isset($data["request_id"])) { die("0"); }
+  $owner_key = $data["ownerKey"];
+  $request_id = $data["request_id"];
+  $success = $data["success"];
+
+  //check if this request id already exists
+  $result = db_query('SELECT COUNT(*) FROM `requests` WHERE `session_id`=(SELECT `id` FROM `sessions` WHERE `session`=?) AND `request_id`=?', [$session, $request_id]);
+  if (intval($result->fetch_row()[0]) > 0) { die("0"); }
+  $result = db_query('INSERT INTO `requests` (`session_id`, `request_id`) VALUES ((SELECT `id` FROM `sessions` WHERE `session`=?), ?)', [$session, $request_id]);
+
+  //get id of owner_key from owners table
+  $result = db_query('SELECT `id`, `captcha_done` FROM `owners` WHERE `key`=?', [$owner_key]);
+  if ($result->num_rows == 0) { die("0"); }
+  $row = $result->fetch_assoc();
+  $owner_key_id = $row["id"];
+  $captcha_done = $row["captcha_done"];
+
+  if ($captcha_done == 0)
+  {
+    //get current status from captcha table
+    $result = db_query('SELECT *, UNIX_TIMESTAMP(`time`) AS `time` FROM `captcha` WHERE `owner_key_id`=? ORDER BY `id` DESC LIMIT ?', [$owner_key_id, $max_request_per_period]);
+    $oldest_time = 0;
+    $rows = 0;
+    while ($row = $result->fetch_assoc())
+    {
+      $oldest_time = $row["time"];
+      ++$rows;
+    }
+    $diff = time() - $oldest_time;
+    if ($rows < $max_request_per_period || $diff >= $period_length_seconds)
+    {
+      $result = db_query('INSERT INTO `captcha` (`owner_key_id`, `success`) VALUES (?, ?)', [$owner_key_id, $success]);
+    }
+    else
+    {
+      die(DH::enc(strval($period_length_seconds - $diff), $enc_key, $enc_iv));
+    }
+
+    if ($success) { db_query('UPDATE `owners` SET `captcha_done`=1 WHERE `id`=?', [$owner_key_id]); }
+  }
+  
+  die(DH::enc("ok", $enc_key, $enc_iv));
 }
 else if (isset($_GET["get_msgs"]))
 {
@@ -995,7 +1062,6 @@ else if (isset($_GET["msg_seen"]))
   $result = db_query('INSERT INTO `messages_seen` (`message_id`, `owner_key_id`) VALUES (?, ?)', [$message_id, $owner_key_id]);
   die(DH::enc("ok", $enc_key, $enc_iv));
 }
-
 else if (isset($_GET["popup_seen"]))
 {
   //POST is json encoded
