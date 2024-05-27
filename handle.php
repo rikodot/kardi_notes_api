@@ -758,44 +758,21 @@ else if (isset($_GET["version_check"]))
   //check if config filled out
   $got_oldest = !empty($oldest_allowed_ver);
   $got_latest = !empty($latest_ver);
-
   if (!$got_oldest && !$got_latest)
   {
     db_query('UPDATE `sessions` SET `version_check_done`=? WHERE `session`=?', [true, $session]);
     die(DH::enc("ok", $enc_key, $enc_iv));
-  }
-  $current_ver = explode(".", $current_ver);
-
-  $major_good = false;
-  $minor_good = false;
-  $build_good = false;
+  }  
+  $current_ver = preg_replace("/[^0-9]/", "", $current_ver);
   $can_ignore = false;
 
-  //version format "1.0.0"
-  if ($got_oldest)
-  {
-    $oldest_allowed_ver = explode(".", $oldest_allowed_ver);
-
-    $major_good = intval($current_ver[0]) >= intval($oldest_allowed_ver[0]);
-    $minor_good = intval($current_ver[1]) >= intval($oldest_allowed_ver[1]);
-    $build_good = intval($current_ver[2]) >= intval($oldest_allowed_ver[2]);
-  }
-
-  //we are above or on the oldest allowed version
-  if (!$got_oldest || ($major_good && $minor_good && $build_good))
+  if ($got_oldest) { $oldest_allowed_ver = preg_replace("/[^0-9]/", "", $oldest_allowed_ver); }
+  if (!$got_oldest || $current_ver >= $oldest_allowed_ver) //oldest allowed not set or good
   {
     $can_ignore = true;
 
-    if ($got_latest)
-    {
-      $latest_ver = explode(".", $latest_ver);
-      $major_good = intval($current_ver[0]) == intval($latest_ver[0]);
-      $minor_good = intval($current_ver[1]) == intval($latest_ver[1]);
-      $build_good = intval($current_ver[2]) == intval($latest_ver[2]);
-    }
-
-    //we are on the latest version
-    if (!$got_latest || ($major_good && $minor_good && $build_good))
+    if ($got_latest) { $latest_ver = preg_replace("/[^0-9]/", "", $latest_ver); }
+    if (!$got_latest || $current_ver == $latest_ver) //latest not set or good
     {
       db_query('UPDATE `sessions` SET `version_check_done`=? WHERE `session`=?', [true, $session]);
       die(DH::enc("ok", $enc_key, $enc_iv));
