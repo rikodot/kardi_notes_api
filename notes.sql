@@ -180,7 +180,11 @@ ALTER TABLE `variables`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 INSERT INTO `config` (`id`, `platform`, `latest_ver`, `oldest_allowed_ver`, `latest_link`, `instructions`, `instructions_link`) VALUES
-(1, 'android', '2.0.4', '2.0.0', 'https://www.kardi.tech/notes/downloads/kardi%20notes.apk', '', ''),
-(2, 'windows', '2.0.4', '2.0.0', 'https://www.kardi.tech/notes/downloads/kardi%20notes.exe', '', ''),
-(3, 'linux', '2.0.4', '2.0.0', 'https://www.kardi.tech/notes/downloads/kardi%20notes.AppImage', '', '');
+(1, 'android', '2.1.1', '2.1.1', '', '', ''),
+(2, 'windows', '2.1.1', '2.1.1', 'https://www.kardi.tech/notes/downloads/kardi%20notes.exe', '', ''),
+(3, 'linux', '2.1.1', '2.1.1', 'https://www.kardi.tech/notes/downloads/kardi%20notes.AppImage', '', '');
+
+INSERT INTO `variables` (`id`, `key`, `value`) VALUES
+(1, 'server_default_note_color', '4291416319');
+
 COMMIT;
